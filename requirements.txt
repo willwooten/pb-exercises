@@ -1,7 +1,7 @@
 jupyter
 requests
 nose
-pycrypto
+pycryptodome
 mock
 csiphash
 pbkdf2
