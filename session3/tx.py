@@ -29,13 +29,23 @@ class Tx:
         '''
         # s.read(n) will return n bytes
         # version has 4 bytes, little-endian, interpret as int
+        version = little_endian_to_int(s.read(4))
         # num_inputs is a varint, use read_varint(s)
+        num_inputs = read_varint(s)
         # each input needs parsing
+        inputs = []
+        for _ in range(num_inputs):
+            inputs.append(TxIn.parse(s))
         # num_outputs is a varint, use read_varint(s)
+        num_outputs = read_varint(s)
         # each output needs parsing
+        outputs = []
+        for _ in range(num_outputs):
+            outputs.append(TxOut.parse(s))
         # locktime is 4 bytes, little-endian
+        locktime = little_endian_to_int(s.read(4))
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(version, inputs, outputs, locktime)
 
 
 class TxIn:
@@ -49,7 +59,7 @@ class TxIn:
         self.sequence = sequence
 
     def __repr__(self):
-        return f'{self.prev_tx.hex()}:{prev_index}'
+        return f'{self.prev_tx.hex()}:{self.prev_index}'
 
     @classmethod
     def parse(cls, s):
@@ -58,12 +68,16 @@ class TxIn:
         '''
         # s.read(n) will return n bytes
         # prev_tx is 32 bytes, little endian
+        prev_tx = s.read(32)[::-1]
         # prev_index is 4 bytes, little endian, interpret as int
+        prev_index = little_endian_to_int(s.read(4))
         # script_sig is a variable field (length followed by the data)
         # you can use Script.parse to get the actual script
+        script_sig = Script.parse(s)
         # sequence is 4 bytes, little-endian, interpret as int
+        sequence = little_endian_to_int(s.read(4))
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(prev_tx, prev_index, script_sig, sequence)
 
 
 class TxOut:
@@ -82,10 +96,12 @@ class TxOut:
         '''
         # s.read(n) will return n bytes
         # amount is 8 bytes, little endian, interpret as int
+        amount = little_endian_to_int(s.read(8))
         # script_pubkey is a variable field (length followed by the data)
         # you can use Script.parse to get the actual script
+        script_pubkey = Script.parse(s)
         # return an instance of the class (cls(...))
-        raise NotImplementedError
+        return cls(amount, script_pubkey)
 
 
 class TxTest(TestCase):
