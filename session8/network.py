@@ -294,13 +294,6 @@ class HeadersMessage:
             last_block = h.hash()
         return True
 
-    def merkle_block_request(self):
-        '''Request Merkle Blocks for each header'''
-        get_data = GetDataMessage()
-        for h in self.headers:
-            get_data.add_data(FILTERED_BLOCK_DATA_TYPE, h.hash())
-        return get_data
-
 
 class HeadersMessageTest(TestCase):
 
@@ -417,6 +410,41 @@ class SimpleNode:
         # return the envelope parsed as a member of the right message class
         return command_to_class[command].parse(envelope.stream())
 
+    def get_filtered_txs(self, block_hashes):
+        '''Returns transactions that match the bloom filter'''
+        from merkleblock import MerkleBlock
+        # create a getdata message
+        getdata = GetDataMessage()
+        # for each block request the filtered block
+        for block_hash in block_hashes:
+            # add_data (FILTERED_BLOCK_DATA_TYPE, block_hash) to request the block
+            getdata.add_data(FILTERED_BLOCK_DATA_TYPE, block_hash)
+        # send the getdata message
+        self.send(getdata)
+        # initialize the results array we'll send back
+        results = []
+        # for each block hash
+        for block_hash in block_hashes:
+            # wait for the merkleblock command
+            mb = self.wait_for(MerkleBlock)
+            # check that the merkle block's hash is the same as the block hash
+            if mb.hash() != block_hash:
+                raise RuntimeError('Wrong block sent')
+            # check that the merkle block is valid
+            if not mb.is_valid():
+                raise RuntimeError('Merkle Proof is invalid')
+            # loop through the proved transactions from the Merkle block
+            for tx_hash in mb.proved_txs():
+                # wait for the tx command
+                tx_obj = self.wait_for(Tx)
+                # check that the hash matches
+                if tx_obj.hash() != tx_hash:
+                    raise RuntimeError(f'Wrong tx sent {tx_hash.hx()} vs {tx_obj.id()}')
+                # add to the results
+                results.append(tx_obj)
+        # return the results
+        return results
+
     def is_tx_accepted(self, tx_obj):
         '''Returns whether a transaction has been accepted on the network'''
         # create a GetDataMessage
@@ -429,25 +457,6 @@ class SimpleNode:
         got_tx = self.wait_for(Tx)
         if got_tx.id() == tx_obj.id():
             return True
-
-    def get_filtered_txs(self, block_hashes):
-        '''Returns transactions that match the bloom filter'''
-        from merkleblock import MerkleBlock
-        # create a getdata message
-        # for each block request the filtered block
-            # add_data (FILTERED_BLOCK_DATA_TYPE, block_hash) to request the block
-        # send the getdata message
-        # initialize the results array we'll send back
-        # for each block hash
-            # wait for the merkleblock command
-            # check that the merkle block's hash is the same as the block hash
-            # check that the merkle block is valid
-            # loop through the proved transactions from the Merkle block
-                # wait for the tx command
-                # check that the hash matches
-                # add to the results
-        # return the results
-        raise NotImplementedError
 
 
 class SimpleNodeTest(TestCase):
