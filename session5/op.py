@@ -702,18 +702,28 @@ def op_checkmultisig(stack, z):
     stack.pop()
     try:
         # parse the sec_pubkeys into an array of points
+        points = [S256Point.parse(sec) for sec in sec_pubkeys]
         # parse the der_signatures into an array of signatures
+        sigs = [Signature.parse(der) for der in der_signatures]
         # loop through the signatures
+        for sig in sigs:
             # bail early if we don't have any points left
+            if len(points) == 0:
                 # add a 0 to the stack using encode_num(0)
+                stack.append(encode_num(0))
                 # return True
+                return True
             # while we have points
+            while points:
                 # get the point at the front (points.pop(0))
+                point = points.pop(0)
                 # see if this point can verify this sig with this z
+                if point.verify(z, sig):
                     # break if so, this sig is valid!
+                    break
         # if we made it this far, we have to add a 1 to the stack
         # use encode_num(1)
-        raise NotImplementedError
+        stack.append(encode_num(1))
     except (ValueError, SyntaxError):
         return False
     return True
